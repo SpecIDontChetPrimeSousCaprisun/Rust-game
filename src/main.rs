@@ -93,8 +93,10 @@ fn main() {
 
     let mut pitch = 0.0;
     let mut yaw = 90.0;
+    let mut cam_pos = [0.0, 0.0, -3.0];
     let mut cam_up = [0.0, 1.0, 0.0];
     let mut cam_front = [0.0, 0.0, 1.0];
+    let mut cam_vel = [0.0, 0.0, 0.0];
     let mut t: f32 = 0.0;
     let _ = event_loop.run(move |event, window_target| {
         match event {
@@ -107,13 +109,35 @@ fn main() {
                 }
             },
             glium::winit::event::Event::WindowEvent { event, .. } => {
-	              onKbInp(&event);
+                cam_vel = on_kb_inp(&event, &cam_vel);
+
                 match event {
                     glium::winit::event::WindowEvent::CloseRequested => window_target.exit(),
                     glium::winit::event::WindowEvent::Resized(window_size) => {
                         display.resize(window_size.into());
                     },
                     glium::winit::event::WindowEvent::RedrawRequested => {
+                        cam_pos[0] += cam_front[0] * cam_vel[2];
+                        cam_pos[1] += cam_front[1] * cam_vel[2];
+                        cam_pos[2] += cam_front[2] * cam_vel[2];
+
+                        let mut cam_right = cross_product(&cam_front, &cam_up); 
+                        let len = (cam_right[0] * cam_right[0] + 
+                                   cam_right[1] * cam_right[1] +
+                                   cam_right[2] * cam_right[2]  ).sqrt();
+
+                        cam_right[0] = cam_right[0] / len;
+                        cam_right[1] = cam_right[1] / len;
+                        cam_right[2] = cam_right[2] / len;
+
+                        cam_pos[0] += cam_front[0] * cam_vel[2];
+                        cam_pos[1] += cam_front[1] * cam_vel[2];
+                        cam_pos[2] += cam_front[2] * cam_vel[2];
+
+                        cam_pos[0] += cam_right[0] * cam_vel[0];
+                        cam_pos[1] += cam_right[1] * cam_vel[0];
+                        cam_pos[2] += cam_right[2] * cam_vel[0];
+
                         t += 0.02;
 
                         let x_off = t.sin() * 3.0;
@@ -138,7 +162,7 @@ fn main() {
                             ]
                         };
 
-                        let view = view_matrix(&[0.5, 0.2, -3.0], &cam_front, &cam_up);
+                        let view = view_matrix(&cam_pos, &cam_front, &cam_up);
 
                         let uniforms = uniform! {
                             matrix: [
@@ -179,6 +203,14 @@ fn main() {
     });
 }
 
+fn cross_product(a: &[f32; 3], b: &[f32; 3]) -> [f32; 3] {
+    [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0]
+    ]
+}
+
 fn view_matrix(position: &[f32; 3], direction: &[f32; 3], up: &[f32; 3]) -> [[f32; 4]; 4] {
     let f = {
         let f = direction;
@@ -213,32 +245,52 @@ fn view_matrix(position: &[f32; 3], direction: &[f32; 3], up: &[f32; 3]) -> [[f3
     ]
 }
 
-fn onKbInp(event: &glium::winit::event::WindowEvent) {
+fn on_kb_inp(event: &glium::winit::event::WindowEvent, cam_vel: &[f32; 3]) -> [f32; 3]{
+    let mut new_vel = [0.0; 3];
+
+    new_vel[0] = cam_vel[0];
+    new_vel[1] = cam_vel[1];
+    new_vel[2] = cam_vel[2];
+
     match event {
-        glium::winit::event::WindowEvent::KeyboardInput {
-            event:
-                glium::winit::event::KeyEvent {
-                    physical_key: glium::winit::keyboard::PhysicalKey::Code(glium::winit::keyboard::KeyCode::KeyW),
-                    state: glium::winit::event::ElementState::Pressed,
-                    repeat: false,
-                    ..
+        glium::winit::event::WindowEvent::KeyboardInput { event, .. } => match event.physical_key {
+            glium::winit::keyboard::PhysicalKey::Code(key_code) => match key_code {
+                glium::winit::keyboard::KeyCode::KeyW => {
+                    if event.state == glium::winit::event::ElementState::Pressed {
+                        new_vel[2] = 1.0;
+                    } else if new_vel[2] == 1.0 {
+                        new_vel[2] = 0.0;
+                    }
                 },
-            ..
-        } => {
-        },
-        glium::winit::event::WindowEvent::KeyboardInput {
-            event:
-                glium::winit::event::KeyEvent {
-                    physical_key: glium::winit::keyboard::PhysicalKey::Code(glium::winit::keyboard::KeyCode::KeyZ),
-                    state: glium::winit::event::ElementState::Pressed,
-                    repeat: false,
-                    ..
+                glium::winit::keyboard::KeyCode::KeyS => {
+                    if event.state == glium::winit::event::ElementState::Pressed {
+                        new_vel[2] = -1.0;
+                    } else if new_vel[2] == -1.0 {
+                        new_vel[2] = 0.0;
+                    }
                 },
-            ..
-        } => {
+                glium::winit::keyboard::KeyCode::KeyA => {
+                    if event.state == glium::winit::event::ElementState::Pressed {
+                        new_vel[0] = 1.0;
+                    } else if new_vel[0] == 1.0 {
+                        new_vel[0] = 0.0;
+                    }
+                },
+                glium::winit::keyboard::KeyCode::KeyD => {
+                    if event.state == glium::winit::event::ElementState::Pressed {
+                        new_vel[0] = -1.0;
+                    } else if new_vel[0] == -1.0 {
+                        new_vel[0] = 0.0;
+                    }
+                },
+                _ => (),
+            },
+            _ => (),
         },
         _ => (),
-    }
+    };
+
+    new_vel
 }
 
 fn on_mouse_movement(event: &glium::winit::event::DeviceEvent, cam_front: &mut [f32; 3], yaw: f32, pitch: f32) -> (f32, f32, bool) {
