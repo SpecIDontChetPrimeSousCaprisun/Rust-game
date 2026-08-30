@@ -1,5 +1,13 @@
 use glium::Surface;
+use glium::Program;
+use glium::backend::Facade;
+use glium::backend::glutin::SimpleWindowBuilder;
+use glium::uniform;
+use glium::winit::event::{Event, WindowEvent};
+use glium::winit::event_loop::{ControlFlow, EventLoop};
+use obj::{Obj, load_obj};
 mod vector;
+mod fileLoader;
 mod teapot;
 
 #[derive(Copy, Clone)]
@@ -12,9 +20,9 @@ implement_vertex!(Vertex, position, normal, tex_coords);
 
 #[macro_use]
 extern crate glium;
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let event_loop = glium::winit::event_loop::EventLoopBuilder::new().build().expect("event loop building");
-    let (window, display) = glium::backend::glutin::SimpleWindowBuilder::new().build(&event_loop);
+    let (window, display) = SimpleWindowBuilder::new().build(&event_loop);
     window.set_cursor_grab(glium::winit::window::CursorGrabMode::Locked);
     window.set_cursor_visible(false);
 
@@ -32,6 +40,12 @@ fn main() {
 
     let texture = glium::texture::Texture2d::new(&display, image).unwrap();
 
+    let input = include_bytes!("../Monkey.obj");
+    let obj: Obj = load_obj(&input[..])?;
+
+    let vb = obj.vertex_buffer(display.get_context())?;
+    let ib = obj.index_buffer(display.get_context())?;
+
     let positions = glium::VertexBuffer::new(&display, &teapot::VERTICES).unwrap();
     let normals = glium::VertexBuffer::new(&display, &teapot::NORMALS).unwrap();
     let indices = glium::IndexBuffer::new(&display, glium::index::PrimitiveType::TrianglesList,
@@ -42,11 +56,9 @@ fn main() {
 
         in vec3 position;
         in vec3 normal;
-        in vec2 tex_coords;
 
         out vec3 v_normal;
         out vec3 v_position;
-        out vec2 v_tex_coords;
 
         uniform sampler2D tex;
         uniform mat4 perspective;
@@ -54,7 +66,6 @@ fn main() {
         uniform mat4 matrix;
 
         void main() {
-            v_tex_coords = tex_coords;
             mat4 modelview = view * matrix;
             v_normal = transpose(inverse(mat3(modelview))) * normal;
             gl_Position = perspective * modelview * vec4(position, 1.0);
@@ -67,7 +78,6 @@ fn main() {
 
         in vec3 v_normal;
         in vec3 v_position;
-        in vec2 v_tex_coords;
 
         out vec4 color;
 
@@ -77,7 +87,7 @@ fn main() {
         const vec3 specular_color = vec3(1.0, 1.0, 1.0);
 
         void main() {
-            vec3 diffuse_color = texture(diffuse_texture, v_tex_coords).rgb;
+            vec3 diffuse_color = vec3(1.0, 0.0, 0.0);
             vec3 ambient_color = diffuse_color * 0.1;
 
             float diffuse = max(dot(normalize(v_normal), normalize(u_light)), 0.0);
@@ -176,7 +186,7 @@ fn main() {
                             .. Default::default()
                         };
 
-                        target.draw(&shape, glium::index::NoIndices(glium::index::PrimitiveType::TriangleStrip), &program,
+                        target.draw(&vb, &ib, &program,
                         &uniforms,
                         &params).unwrap();
                         target.finish().unwrap();
@@ -191,6 +201,8 @@ fn main() {
             _ => (),
         };
     });
+
+    Ok(())
 }
 
 fn on_kb_inp(event: &glium::winit::event::WindowEvent, cam_vel: &vector::Vector) -> vector::Vector {
