@@ -5,7 +5,7 @@ use glium::backend::glutin::SimpleWindowBuilder;
 use glium::uniform;
 use glium::winit::event::{Event, WindowEvent};
 use glium::winit::event_loop::{ControlFlow, EventLoop};
-use obj::{Obj, load_obj};
+use obj::{Obj, load_obj, TexturedVertex};
 mod vector;
 mod fileLoader;
 mod teapot;
@@ -41,7 +41,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let texture = glium::texture::Texture2d::new(&display, image).unwrap();
 
     let input = include_bytes!("../Monkey.obj");
-    let obj: Obj = load_obj(&input[..])?;
+    let obj: Obj<TexturedVertex, u16> = load_obj(&input[..])?;
 
     let vb = obj.vertex_buffer(display.get_context())?;
     let ib = obj.index_buffer(display.get_context())?;
@@ -56,9 +56,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         in vec3 position;
         in vec3 normal;
+        in vec3 texture;
 
         out vec3 v_normal;
         out vec3 v_position;
+        out vec3 v_tex_coords;
 
         uniform sampler2D tex;
         uniform mat4 perspective;
@@ -66,6 +68,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         uniform mat4 matrix;
 
         void main() {
+            v_tex_coords = texture;
             mat4 modelview = view * matrix;
             v_normal = transpose(inverse(mat3(modelview))) * normal;
             gl_Position = perspective * modelview * vec4(position, 1.0);
@@ -78,6 +81,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         in vec3 v_normal;
         in vec3 v_position;
+        in vec3 v_tex_coords;
 
         out vec4 color;
 
@@ -87,7 +91,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         const vec3 specular_color = vec3(1.0, 1.0, 1.0);
 
         void main() {
-            vec3 diffuse_color = vec3(1.0, 0.0, 0.0);
+            vec3 diffuse_color = texture(diffuse_texture, vec2(v_tex_coords.x, v_tex_coords.y)).rgb;
             vec3 ambient_color = diffuse_color * 0.1;
 
             float diffuse = max(dot(normalize(v_normal), normalize(u_light)), 0.0);
@@ -171,10 +175,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 [0.0, 0.0, 1.0, 0.0],
                                 [0.0, 0.0, 0.0, 1.0f32],
                             ],
-                            u_light: [1.4, 0.4, 0.7f32],
+                            u_light: [0.5, 0.5, 0.5f32],
                             perspective: perspective,
                             view: view,
-                            tex: &texture,
+                            diffuse_texture: &texture,
                         };
 
                         let params = glium::DrawParameters {
