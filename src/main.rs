@@ -121,14 +121,7 @@ fn main() {
                         cam_pos[1] += cam_front[1] * cam_vel[2];
                         cam_pos[2] += cam_front[2] * cam_vel[2];
 
-                        let mut cam_right = cross_product(&cam_front, &cam_up); 
-                        let len = (cam_right[0] * cam_right[0] + 
-                                   cam_right[1] * cam_right[1] +
-                                   cam_right[2] * cam_right[2]  ).sqrt();
-
-                        cam_right[0] = cam_right[0] / len;
-                        cam_right[1] = cam_right[1] / len;
-                        cam_right[2] = cam_right[2] / len;
+                        let mut cam_right = normal(&cross_product(&cam_front, &cam_up)); 
 
                         cam_pos[0] += cam_front[0] * cam_vel[2];
                         cam_pos[1] += cam_front[1] * cam_vel[2];
@@ -211,13 +204,14 @@ fn cross_product(a: &[f32; 3], b: &[f32; 3]) -> [f32; 3] {
     ]
 }
 
+fn normal(v: &[f32; 3]) -> [f32; 3] {
+    let len = v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
+    let len = len.sqrt();
+    [v[0] / len, v[1] / len, v[2] / len]
+}
+
 fn view_matrix(position: &[f32; 3], direction: &[f32; 3], up: &[f32; 3]) -> [[f32; 4]; 4] {
-    let f = {
-        let f = direction;
-        let len = f[0] * f[0] + f[1] * f[1] + f[2] * f[2];
-        let len = len.sqrt();
-        [f[0] / len, f[1] / len, f[2] / len]
-    };
+    let f = normal(direction);
 
     let s = [up[1] * f[2] - up[2] * f[1],
              up[2] * f[0] - up[0] * f[2],
@@ -310,13 +304,11 @@ fn on_mouse_movement(event: &glium::winit::event::DeviceEvent, cam_front: &mut [
             direction[1] = pitch.sin();
             direction[2] = yaw.sin() * pitch.cos();
             
-            let len = (direction[0] * direction[0] + 
-                       direction[1] * direction[1] +
-                       direction[2] * direction[2]  ).sqrt();
+            direction = normal(&direction);
 
-            cam_front[0] = direction[0] / len;
-            cam_front[1] = direction[1] / len;
-            cam_front[2] = direction[2] / len;
+            cam_front[0] = direction[0];
+            cam_front[1] = direction[1];
+            cam_front[2] = direction[2];
         },
         _ => ()
     };
