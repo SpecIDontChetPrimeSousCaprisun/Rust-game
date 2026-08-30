@@ -1,4 +1,5 @@
 use glium::Surface;
+mod vector;
 mod teapot;
 
 #[derive(Copy, Clone)]
@@ -93,10 +94,10 @@ fn main() {
 
     let mut pitch = 0.0;
     let mut yaw = 90.0;
-    let mut cam_pos = [0.0, 0.0, -3.0];
-    let mut cam_up = [0.0, 1.0, 0.0];
-    let mut cam_front = [0.0, 0.0, 1.0];
-    let mut cam_vel = [0.0, 0.0, 0.0];
+    let mut cam_pos = vector::new_vector(&[0.0, 0.0, -3.0]);
+    let mut cam_up = vector::new_vector(&[0.0, 1.0, 0.0]);
+    let mut cam_front = vector::new_vector(&[0.0, 0.0, 1.0]);
+    let mut cam_vel = vector::new_vector(&[0.0, 0.0, 0.0]);
     let mut t: f32 = 0.0;
     let _ = event_loop.run(move |event, window_target| {
         match event {
@@ -117,19 +118,15 @@ fn main() {
                         display.resize(window_size.into());
                     },
                     glium::winit::event::WindowEvent::RedrawRequested => {
-                        cam_pos[0] += cam_front[0] * cam_vel[2];
-                        cam_pos[1] += cam_front[1] * cam_vel[2];
-                        cam_pos[2] += cam_front[2] * cam_vel[2];
+                        let mut cam_right = cam_front.cross_product(&cam_up).normal(); 
 
-                        let mut cam_right = normal(&cross_product(&cam_front, &cam_up)); 
+                        let mut f_add = vector::Vector::clone(&cam_front);
+                        f_add.mult(&vector::new_vector(&[cam_vel.z; 3]));
+                        cam_pos.add(&f_add);
 
-                        cam_pos[0] += cam_front[0] * cam_vel[2];
-                        cam_pos[1] += cam_front[1] * cam_vel[2];
-                        cam_pos[2] += cam_front[2] * cam_vel[2];
-
-                        cam_pos[0] += cam_right[0] * cam_vel[0];
-                        cam_pos[1] += cam_right[1] * cam_vel[0];
-                        cam_pos[2] += cam_right[2] * cam_vel[0];
+                        let mut r_add = vector::Vector::clone(&cam_right);
+                        r_add.mult(&vector::new_vector(&[cam_vel.x; 3]));
+                        cam_pos.add(&r_add);
 
                         t += 0.02;
 
@@ -155,7 +152,7 @@ fn main() {
                             ]
                         };
 
-                        let view = view_matrix(&cam_pos, &cam_front, &cam_up);
+                        let view = vector::Vector::get_view_matrix(&cam_pos, &cam_front, &cam_up);
 
                         let uniforms = uniform! {
                             matrix: [
@@ -196,85 +193,38 @@ fn main() {
     });
 }
 
-fn cross_product(a: &[f32; 3], b: &[f32; 3]) -> [f32; 3] {
-    [
-        a[1] * b[2] - a[2] * b[1],
-        a[2] * b[0] - a[0] * b[2],
-        a[0] * b[1] - a[1] * b[0]
-    ]
-}
-
-fn normal(v: &[f32; 3]) -> [f32; 3] {
-    let len = v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
-    let len = len.sqrt();
-    [v[0] / len, v[1] / len, v[2] / len]
-}
-
-fn view_matrix(position: &[f32; 3], direction: &[f32; 3], up: &[f32; 3]) -> [[f32; 4]; 4] {
-    let f = normal(direction);
-
-    let s = [up[1] * f[2] - up[2] * f[1],
-             up[2] * f[0] - up[0] * f[2],
-             up[0] * f[1] - up[1] * f[0]];
-
-    let s_norm = {
-        let len = s[0] * s[0] + s[1] * s[1] + s[2] * s[2];
-        let len = len.sqrt();
-        [s[0] / len, s[1] / len, s[2] / len]
-    };
-
-    let u = [f[1] * s_norm[2] - f[2] * s_norm[1],
-             f[2] * s_norm[0] - f[0] * s_norm[2],
-             f[0] * s_norm[1] - f[1] * s_norm[0]];
-
-    let p = [-position[0] * s_norm[0] - position[1] * s_norm[1] - position[2] * s_norm[2],
-             -position[0] * u[0] - position[1] * u[1] - position[2] * u[2],
-             -position[0] * f[0] - position[1] * f[1] - position[2] * f[2]];
-
-    [
-        [s_norm[0], u[0], f[0], 0.0],
-        [s_norm[1], u[1], f[1], 0.0],
-        [s_norm[2], u[2], f[2], 0.0],
-        [p[0], p[1], p[2], 1.0],
-    ]
-}
-
-fn on_kb_inp(event: &glium::winit::event::WindowEvent, cam_vel: &[f32; 3]) -> [f32; 3]{
-    let mut new_vel = [0.0; 3];
-
-    new_vel[0] = cam_vel[0];
-    new_vel[1] = cam_vel[1];
-    new_vel[2] = cam_vel[2];
+fn on_kb_inp(event: &glium::winit::event::WindowEvent, cam_vel: &vector::Vector) -> vector::Vector {
+    let mut new_vel = vector::Vector::clone(cam_vel);
 
     match event {
         glium::winit::event::WindowEvent::KeyboardInput { event, .. } => match event.physical_key {
             glium::winit::keyboard::PhysicalKey::Code(key_code) => match key_code {
                 glium::winit::keyboard::KeyCode::KeyW => {
                     if event.state == glium::winit::event::ElementState::Pressed {
-                        new_vel[2] = 1.0;
-                    } else if new_vel[2] == 1.0 {
-                        new_vel[2] = 0.0;
+                        new_vel.z = 1.0;
+                    } else if new_vel.z == 1.0 {
+                        new_vel.z = 0.0;
                     }
                 },
                 glium::winit::keyboard::KeyCode::KeyS => {
                     if event.state == glium::winit::event::ElementState::Pressed {
-                        new_vel[2] = -1.0;
-                    } else if new_vel[2] == -1.0 {
-                        new_vel[2] = 0.0;
+                        new_vel.z = -1.0;
+                    } else if new_vel.z == -1.0 {
+                        new_vel.z = 0.0;
                     }
                 },
                 glium::winit::keyboard::KeyCode::KeyA => {
                     if event.state == glium::winit::event::ElementState::Pressed {
-                        new_vel[0] = 1.0;
-                    } else if new_vel[0] == 1.0 {
-                        new_vel[0] = 0.0;
+                        new_vel.x = 1.0;
+                    } else if new_vel.x == 1.0 {
+                        new_vel.x = 0.0;
                     }
                 },
                 glium::winit::keyboard::KeyCode::KeyD => {
                     if event.state == glium::winit::event::ElementState::Pressed {
-                        new_vel[0] = -1.0;
-                    } else if new_vel[0] == -1.0 {
-                        new_vel[0] = 0.0;
+                        new_vel.x = -1.0;
+                    } else if new_vel.x == -1.0 {
+                        new_vel.x = 0.0;
                     }
                 },
                 _ => (),
@@ -287,7 +237,7 @@ fn on_kb_inp(event: &glium::winit::event::WindowEvent, cam_vel: &[f32; 3]) -> [f
     new_vel
 }
 
-fn on_mouse_movement(event: &glium::winit::event::DeviceEvent, cam_front: &mut [f32; 3], yaw: f32, pitch: f32) -> (f32, f32, bool) {
+fn on_mouse_movement(event: &glium::winit::event::DeviceEvent, cam_front: &mut vector::Vector, yaw: f32, pitch: f32) -> (f32, f32, bool) {
     let mut new_yaw: f32 = 0.0;
     let mut new_pitch: f32 = 0.0;
     let mut goodEvent = false;
@@ -298,17 +248,15 @@ fn on_mouse_movement(event: &glium::winit::event::DeviceEvent, cam_front: &mut [
             new_pitch = pitch + (-delta.1 as f32 / 1000.0);
             goodEvent = true;
 
-            let mut direction: [f32; 3] = [0.0, 0.0, 0.0];
+            let mut direction = vector::new_vector(&[0.0; 3]);
 
-            direction[0] = yaw.cos() * pitch.cos();
-            direction[1] = pitch.sin();
-            direction[2] = yaw.sin() * pitch.cos();
+            direction.x = yaw.cos() * pitch.cos();
+            direction.y = pitch.sin();
+            direction.z = yaw.sin() * pitch.cos();
             
-            direction = normal(&direction);
+            direction = direction.normal();
 
-            cam_front[0] = direction[0];
-            cam_front[1] = direction[1];
-            cam_front[2] = direction[2];
+            cam_front.replace(&direction);
         },
         _ => ()
     };
