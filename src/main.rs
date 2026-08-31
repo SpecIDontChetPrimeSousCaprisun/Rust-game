@@ -7,8 +7,8 @@ use glium::winit::event::{Event, WindowEvent};
 use glium::winit::event_loop::{ControlFlow, EventLoop};
 use obj::{Obj, load_obj, TexturedVertex};
 mod vector;
-mod fileLoader;
-mod teapot;
+mod drawable;
+use drawable::*;
 
 #[derive(Copy, Clone)]
 struct Vertex {
@@ -31,13 +31,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let image_dimensions = image.dimensions();
     let image = glium::texture::RawImage2d::from_raw_rgba_reversed(&image.into_raw(), image_dimensions);
     
-    let shape = glium::vertex::VertexBuffer::new(&display, &[
-        Vertex { position: [-1.0,  1.0, 0.0], normal: [0.0, 0.0, -1.0], tex_coords: [0.0, 1.0] },
-        Vertex { position: [ 1.0,  1.0, 0.0], normal: [0.0, 0.0, -1.0], tex_coords: [1.0, 1.0] },
-        Vertex { position: [-1.0, -1.0, 0.0], normal: [0.0, 0.0, -1.0], tex_coords: [0.0, 0.0] },
-        Vertex { position: [ 1.0, -1.0, 0.0], normal: [0.0, 0.0, -1.0], tex_coords: [1.0, 0.0] },
-    ]).unwrap();
-
     let texture = glium::texture::Texture2d::new(&display, image).unwrap();
 
     let input = include_bytes!("../Monkey.obj");
@@ -45,11 +38,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let vb = obj.vertex_buffer(display.get_context())?;
     let ib = obj.index_buffer(display.get_context())?;
-
-    let positions = glium::VertexBuffer::new(&display, &teapot::VERTICES).unwrap();
-    let normals = glium::VertexBuffer::new(&display, &teapot::NORMALS).unwrap();
-    let indices = glium::IndexBuffer::new(&display, glium::index::PrimitiveType::TrianglesList,
-                                        &teapot::INDICES).unwrap();
 
     let vertex_shader_src = r#"
         #version 140
@@ -104,7 +92,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     "#;
 
-    let program = glium::Program::from_source(&display, vertex_shader_src, fragment_shader_src, None).unwrap();
+    let program = glium::Program::from_source(&display, vertex_shader_src, fragment_shader_src, None).unwrap(); 
+    let obj = TestObject{
+        draw_info: DrawInfo {
+            vb: vb,
+            ib: ib,
+            diffuse_texture: texture,
+            program: program,
+        },
+    };
 
     let mut pitch = 0.0;
     let mut yaw = 90.0;
@@ -112,7 +108,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut cam_up = vector::new_vector(&[0.0, 1.0, 0.0]);
     let mut cam_front = vector::new_vector(&[0.0, 0.0, 1.0]);
     let mut cam_vel = vector::new_vector(&[0.0, 0.0, 0.0]);
-    let mut t: f32 = 0.0;
     let _ = event_loop.run(move |event, window_target| {
         match event {
             glium::winit::event::Event::DeviceEvent { event, .. } => {
@@ -142,10 +137,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         r_add.mult(&vector::new_vector(&[cam_vel.x; 3]));
                         cam_pos.add(&r_add);
 
-                        t += 0.02;
-
-                        let x_off = t.sin() * 3.0;
-
                         let mut target = display.draw();
                         target.clear_color_and_depth((0.0, 0.0, 1.0, 1.0), 1.0);
                         let perspective = {
@@ -168,32 +159,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                         let view = vector::Vector::get_view_matrix(&cam_pos, &cam_front, &cam_up);
 
-                        let uniforms = uniform! {
-                            matrix: [
-                                [1.0, 0.0, 0.0, 0.0],
-                                [0.0, 1.0, 0.0, 0.0],
-                                [0.0, 0.0, 1.0, 0.0],
-                                [0.0, 0.0, 0.0, 1.0f32],
-                            ],
-                            u_light: [0.5, 0.5, 0.5f32],
-                            perspective: perspective,
-                            view: view,
-                            diffuse_texture: &texture,
-                        };
-
-                        let params = glium::DrawParameters {
-                            depth: glium::Depth {
-                                test: glium::draw_parameters::DepthTest::IfLess,
-                                write: true,
-                                .. Default::default()
-                            },
-                            .. Default::default()
-                        };
-
-                        target.draw(&vb, &ib, &program,
-                        &uniforms,
-                        &params).unwrap();
-                        target.finish().unwrap();
+                        obj.draw(
+                            WorldInfo {
+                                target: target,
+                                perspective: perspective,
+                                u_light: [0.5, 0.5, 0.5f32],
+                                view: view
+                            }
+                        ); 
                     },
                     _ => (),
                 }
