@@ -1,10 +1,21 @@
 use glium;
 use glium::Surface;
+use crate::vector::*;
+
 pub struct DrawInfo<V, I> where V: glium::vertex::Vertex, I: glium::index::Index {
     pub vb: glium::VertexBuffer<V>,
     pub ib: glium::IndexBuffer<I>,
     pub diffuse_texture: glium::texture::Texture2d,
     pub program: glium::Program,
+    pub position: Vector,
+    pub direction: Vector,
+    pub up: Vector,
+}
+
+impl<V: glium::vertex::Vertex, I: glium::index::Index> DrawInfo<V, I> {
+    pub fn get_matrix (&self) -> [[f32; 4]; 4] {
+        return view_matrix(self.position.as_3d_array(), self.direction.as_3d_array(), self.up.as_3d_array());
+    }
 }
 
 pub struct WorldInfo {
@@ -21,12 +32,7 @@ pub trait Drawable<V, I> where V: glium::vertex::Vertex, I: glium::index::Index 
         mut world_info: WorldInfo,
     ) {
         let uniforms = uniform! {
-            matrix: [
-                [1.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0f32],
-            ],
+            matrix: draw_info.get_matrix(),
             u_light: world_info.u_light,
             perspective: world_info.perspective,
             view: world_info.view,

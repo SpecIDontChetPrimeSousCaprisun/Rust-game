@@ -83,7 +83,7 @@ impl Vector {
     }
 }
 
-fn view_matrix(position: [f32; 3], direction: [f32; 3], up: [f32; 3]) -> [[f32; 4]; 4] {
+pub fn view_matrix(position: [f32; 3], direction: [f32; 3], up: [f32; 3]) -> [[f32; 4]; 4] {
     let f = new_vector(&direction).normal().as_3d_array();
 
     let s = [up[1] * f[2] - up[2] * f[1],

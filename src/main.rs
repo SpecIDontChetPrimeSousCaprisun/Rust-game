@@ -99,6 +99,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             ib: ib,
             diffuse_texture: texture,
             program: program,
+            position: vector::new_vector(&[0.0, 0.0, 0.0]),
+            direction: vector::new_vector(&[0.0, 0.0, -1.0]),
+            up: vector::new_vector(&[0.0, 1.0, 0.0]),
         },
     };
 
