@@ -30,14 +30,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         image::ImageFormat::Png).unwrap().to_rgba8();
     let image_dimensions = image.dimensions();
     let image = glium::texture::RawImage2d::from_raw_rgba_reversed(&image.into_raw(), image_dimensions);
-    
+   
+    let image2 = image::load(std::io::Cursor::new(&include_bytes!("/home/chevre/.config/fastfetch/logo2.png")),
+                        image::ImageFormat::Png).unwrap().to_rgba8();
+    let image_dimensions = image2.dimensions();
+    let image2 = glium::texture::RawImage2d::from_raw_rgba_reversed(&image2.into_raw(), image_dimensions);
+
     let texture = glium::texture::Texture2d::new(&display, image).unwrap();
+    let texture2 = glium::texture::Texture2d::new(&display, image2).unwrap();
 
     let input = include_bytes!("../Monkey.obj");
     let obj: Obj<TexturedVertex, u16> = load_obj(&input[..])?;
 
     let vb = obj.vertex_buffer(display.get_context())?;
     let ib = obj.index_buffer(display.get_context())?;
+
+    let vb2 = obj.vertex_buffer(display.get_context())?;
+    let ib2 = obj.index_buffer(display.get_context())?;
 
     let vertex_shader_src = r#"
         #version 140
@@ -93,7 +102,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     "#;
 
     let program = glium::Program::from_source(&display, vertex_shader_src, fragment_shader_src, None).unwrap(); 
-    let obj = TestObject{
+    let program2 = glium::Program::from_source(&display, vertex_shader_src, fragment_shader_src, None).unwrap(); 
+    let mut objects: Vec<Box<dyn Drawable<TexturedVertex, u16>>> = Vec::new();
+    objects.push(Box::new(TestObject{
         draw_info: DrawInfo {
             vb: vb,
             ib: ib,
@@ -103,7 +114,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             direction: vector::new_vector(&[0.0, 0.0, -1.0]),
             up: vector::new_vector(&[0.0, 1.0, 0.0]),
         },
-    };
+    }));
+
+    objects.push(Box::new(TestObject{
+        draw_info: DrawInfo {
+            vb: vb2,
+            ib: ib2,
+            diffuse_texture: texture2,
+            program: program2,
+            position: vector::new_vector(&[1.0, 0.0, 0.0]),
+            direction: vector::new_vector(&[0.5, 0.0, -1.0]),
+            up: vector::new_vector(&[0.0, 1.0, 0.0]),
+        },
+    }));
 
     let mut pitch = 0.0;
     let mut yaw = 90.0;
@@ -138,10 +161,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                         let mut r_add = vector::Vector::clone(&cam_right);
                         r_add.mult(&vector::new_vector(&[cam_vel.x; 3]));
-                        cam_pos.add(&r_add);
-
+                        cam_pos.add(&r_add); 
+                            
                         let mut target = display.draw();
-                        target.clear_color_and_depth((0.0, 0.0, 1.0, 1.0), 1.0);
                         let perspective = {
                             let (width, height) = target.get_dimensions();
                             let aspect_ratio = height as f32 / width as f32;
@@ -161,15 +183,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         };
 
                         let view = vector::Vector::get_view_matrix(&cam_pos, &cam_front, &cam_up);
+                       
+                        target.clear_color_and_depth((0.0, 0.0, 1.0, 1.0), 1.0);
 
-                        obj.draw(
-                            WorldInfo {
-                                target: target,
-                                perspective: perspective,
-                                u_light: [0.5, 0.5, 0.5f32],
-                                view: view
-                            }
-                        ); 
+                        for obj in objects.iter_mut() {
+                            obj.draw(
+                                WorldInfo {
+                                    perspective: &perspective,
+                                    u_light: [0.5, 0.5, 0.5f32],
+                                    view: view
+                                },
+                                &mut target,
+                            ); 
+                        }
+
+                        target.finish().unwrap();
                     },
                     _ => (),
                 }

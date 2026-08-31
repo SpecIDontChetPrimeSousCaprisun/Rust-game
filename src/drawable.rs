@@ -18,9 +18,8 @@ impl<V: glium::vertex::Vertex, I: glium::index::Index> DrawInfo<V, I> {
     }
 }
 
-pub struct WorldInfo {
-    pub target: glium::Frame, 
-    pub perspective: [[f32; 4]; 4], 
+pub struct WorldInfo<'a> {
+    pub perspective: &'a[[f32; 4]; 4], 
     pub u_light: [f32; 3], 
     pub view: [[f32; 4]; 4],
 }
@@ -30,11 +29,12 @@ pub trait Drawable<V, I> where V: glium::vertex::Vertex, I: glium::index::Index 
         &self,
         draw_info: &DrawInfo<V, I>,
         mut world_info: WorldInfo,
+        mut target: &mut glium::Frame
     ) {
         let uniforms = uniform! {
             matrix: draw_info.get_matrix(),
             u_light: world_info.u_light,
-            perspective: world_info.perspective,
+            perspective: *world_info.perspective,
             view: world_info.view,
             diffuse_texture: &draw_info.diffuse_texture
         };
@@ -48,11 +48,10 @@ pub trait Drawable<V, I> where V: glium::vertex::Vertex, I: glium::index::Index 
             .. Default::default()
         };
 
-        world_info.target.draw(&draw_info.vb, &draw_info.ib, &draw_info.program, &uniforms, &params).unwrap();
-        world_info.target.finish().unwrap();
+        target.draw(&draw_info.vb, &draw_info.ib, &draw_info.program, &uniforms, &params).unwrap();
     }
 
-    fn draw(&self, mut world_info: WorldInfo) {}
+    fn draw(&self, mut world_info: WorldInfo, mut target: &mut glium::Frame) {}
 }
 
 pub struct TestObject<V, I> where V: glium::vertex::Vertex, I: glium::index::Index  {
@@ -62,7 +61,7 @@ pub struct TestObject<V, I> where V: glium::vertex::Vertex, I: glium::index::Ind
 impl<V: glium::vertex::Vertex, I: glium::index::Index> TestObject<V, I> {}
 
 impl<V: glium::vertex::Vertex, I: glium::index::Index> Drawable<V, I> for TestObject<V, I> {
-    fn draw(&self, mut world_info: WorldInfo) {
-        self.on_draw(&self.draw_info, world_info);
+    fn draw(&self, mut world_info: WorldInfo, mut target: &mut glium::Frame) {
+        self.on_draw(&self.draw_info, world_info, target);
     }
 }
