@@ -111,12 +111,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             diffuse_texture: texture,
             program: program,
             position: vector::new_vector(&[0.0, 0.0, 0.0]),
-            direction: vector::new_vector(&[0.0, 0.0, -1.0]),
-            up: vector::new_vector(&[0.0, 1.0, 0.0]),
+            rotation: vector::new_vector(&[0.0, 3.0, 0.0]),
         },
     }));
 
-    objects.push(Box::new(TestObject{
+    /*objects.push(Box::new(TestObject{
         draw_info: DrawInfo {
             vb: vb2,
             ib: ib2,
@@ -126,7 +125,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             direction: vector::new_vector(&[0.5, 0.0, -1.0]),
             up: vector::new_vector(&[0.0, 1.0, 0.0]),
         },
-    }));
+    }));*/
 
     let mut pitch = 0.0;
     let mut yaw = 90.0;
