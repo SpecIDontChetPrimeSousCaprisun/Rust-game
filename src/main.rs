@@ -111,7 +111,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             diffuse_texture: texture,
             program: program,
             position: vector::new_vector(&[0.0, 0.0, 0.0]),
-            rotation: vector::new_vector(&[0.0, 3.0, 0.0]),
+            rotation: vector::new_vector(&[0.0, 180.0, 0.0]),
         },
     }));
 

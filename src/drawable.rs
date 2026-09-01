@@ -14,7 +14,7 @@ pub struct DrawInfo<V, I> where V: glium::vertex::Vertex, I: glium::index::Index
 
 impl<V: glium::vertex::Vertex, I: glium::index::Index> DrawInfo<V, I> {
     pub fn get_matrix (&self) -> [[f32; 4]; 4] {
-        let uq = UnitQuaternion::from_euler_angles(self.rotation.x, self.rotation.y, self.rotation.z);
+        let uq = UnitQuaternion::from_euler_angles(self.rotation.x * 0.01745329, self.rotation.y * 0.01745329, self.rotation.z * 0.01745329);
         return view_matrix(self.position.as_3d_array(), uq.rotate_vector([0.0, 0.0, 1.0]), uq.rotate_vector([0.0, 1.0, 0.0]));
     }
 }
