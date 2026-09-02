@@ -112,3 +112,29 @@ pub fn view_matrix(position: [f32; 3], direction: [f32; 3], up: [f32; 3]) -> [[f
         [p[0], p[1], p[2], 1.0],
     ]
 }
+
+pub fn apply_matrix(vector: [f32; 3], matrix: [[f32; 4]; 4]) -> [f32; 3] {
+    let mut resultX = [0.0, 0.0, 0.0];
+    let mut resultY = [0.0, 0.0, 0.0];
+    let mut resultZ = [0.0, 0.0, 0.0];
+
+    resultX[0] = vector[0] * matrix[0][0];
+    resultX[1] = vector[0] * matrix[1][0];
+    resultX[2] = vector[0] * matrix[2][0];
+
+    resultY[0] = vector[1] * matrix[0][1];
+    resultY[1] = vector[1] * matrix[1][1];
+    resultY[2] = vector[1] * matrix[2][1];
+    
+    resultZ[0] = vector[2] * matrix[0][2];
+    resultZ[1] = vector[2] * matrix[1][2];
+    resultZ[2] = vector[2] * matrix[2][2];
+
+    let mut result = [0.0, 0.0, 0.0];
+
+    result[0] = resultX[0] + resultY[0] + resultZ[0];
+    result[1] = resultX[1] + resultY[1] + resultZ[1];
+    result[2] = resultX[2] + resultY[2] + resultZ[2];
+
+    return result;
+}

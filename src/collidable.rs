@@ -2,7 +2,8 @@ use crate::vector::*;
 use std::num;
 
 pub trait Collidable {
-    fn get_position(&self) -> Vector { new_vector(&[0.0, 0.0, 0.0]) }
+    fn get_position(&self) -> Vector { new_vector(&[0.0, 0.0, 0.0]) } 
+    fn get_size_offset(&self) -> Vector { new_vector(&[0.0, 0.0, 0.0]) }
     fn get_size(&self) -> Vector { new_vector(&[0.0, 0.0, 0.0]) }
     fn recalculate_size(&mut self) {}
     fn get_anchored(&self) -> bool { false }
@@ -15,11 +16,14 @@ pub fn resolve_collision(a: &mut impl Collidable, b: &mut impl Collidable) {
     a.recalculate_size();
     b.recalculate_size();
 
-    let a_pos = a.get_position();
+    let mut a_pos = a.get_position();
     let a_size = a.get_size();
 
-    let b_pos = b.get_position();
+    let mut b_pos = b.get_position();
     let b_size = b.get_size();
+
+    a_pos.add(&a.get_size_offset());
+    b_pos.add(&b.get_size_offset());
 
     if a_pos.x <= b_pos.x + b_size.x &&
        a_pos.x + a_size.x >= b_pos.x &&
@@ -37,15 +41,15 @@ pub fn resolve_collision(a: &mut impl Collidable, b: &mut impl Collidable) {
         } else if (a_pos.y - b_pos.y).abs() < (a_pos.x - b_pos.x).abs() &&
                    (a_pos.y - b_pos.y).abs() < (a_pos.z - b_pos.z).abs() {
             if a_pos.y > b_pos.y {
-                a.set_pos(new_vector(&[b_size.y - (a_pos.y - b_pos.y), 0.0, 0.0]));
+                a.set_pos(new_vector(&[0.0, b_size.y - (a_pos.y - b_pos.y), 0.0]));
             } else {
-                b.set_pos(new_vector(&[a_size.y - (b_pos.y - a_pos.y), 0.0, 0.0]));
+                b.set_pos(new_vector(&[0.0, a_size.y - (b_pos.y - a_pos.y), 0.0]));
             }
         } else {
             if a_pos.z > b_pos.z {
-                a.set_pos(new_vector(&[b_size.z - (a_pos.z - b_pos.z), 0.0, 0.0]));
+                a.set_pos(new_vector(&[0.0, 0.0,b_size.z - (a_pos.z - b_pos.z)]));
             } else {
-                b.set_pos(new_vector(&[a_size.z - (b_pos.z - a_pos.z), 0.0, 0.0]));
+                b.set_pos(new_vector(&[0.0, 0.0, a_size.z - (b_pos.z - a_pos.z)]));
             }
         }
     }
