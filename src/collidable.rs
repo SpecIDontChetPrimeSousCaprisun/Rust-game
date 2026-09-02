@@ -4,12 +4,16 @@ use std::num;
 pub trait Collidable {
     fn get_position(&self) -> Vector { new_vector(&[0.0, 0.0, 0.0]) }
     fn get_size(&self) -> Vector { new_vector(&[0.0, 0.0, 0.0]) }
+    fn recalculate_size(&mut self) {}
     fn get_anchored(&self) -> bool { false }
     fn set_pos(&mut self, pos: Vector) {}
 }
 
 pub fn resolve_collision(a: &mut impl Collidable, b: &mut impl Collidable) {
     if a.get_anchored() && b.get_anchored() { return; }
+
+    a.recalculate_size();
+    b.recalculate_size();
 
     let a_pos = a.get_position();
     let a_size = a.get_size();

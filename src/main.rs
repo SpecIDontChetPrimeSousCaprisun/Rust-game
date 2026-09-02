@@ -21,25 +21,70 @@ struct Vertex {
 }
 implement_vertex!(Vertex, position, normal, tex_coords);
 
-pub struct TestObject<V, I> where V: glium::vertex::Vertex, I: glium::index::Index  {
-   pub draw_info: DrawInfo<V, I>, 
+pub struct TestObject<'a,V, I> where V: glium::vertex::Vertex, I: glium::index::Index  {
+   pub draw_info: DrawInfo<V, I>,
+   pub size: Vector,
+   pub vertices: &'a Vec<TexturedVertex>
 }
 
-impl<V: glium::vertex::Vertex, I: glium::index::Index> TestObject<V, I> {}
+impl<'a, V: glium::vertex::Vertex, I: glium::index::Index> TestObject<'a, V, I> {}
 
-impl<V: glium::vertex::Vertex, I: glium::index::Index> Drawable<V, I> for TestObject<V, I> {
+impl<'a, V: glium::vertex::Vertex, I: glium::index::Index> Drawable<V, I> for TestObject<'a, V, I> {
     fn draw(&self, mut world_info: WorldInfo, mut target: &mut glium::Frame) {
         self.on_draw(&self.draw_info, world_info, target);
     }
 }
 
-impl<V: glium::vertex::Vertex, I: glium::index::Index> Collidable for TestObject<V, I> {
+impl<'a, V: glium::vertex::Vertex, I: glium::index::Index> Collidable for TestObject<'a, V, I> {
     fn get_position(&self) -> Vector {
         return self.draw_info.position;
     }
 
     fn get_size(&self) -> Vector {
-        return new_vector(&[10.0, 10.0, 10.0]);
+        return self.size;
+    }
+
+    fn recalculate_size(&mut self) {
+        let mut min = Vector {
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+        };
+
+        let mut max = Vector {
+            x: 0.0, 
+            y: 0.0, 
+            z: 0.0,
+        };
+
+        for v in self.vertices {
+            if v.position[0] < min.x {
+                min.x = v.position[0];
+            } else if v.position[0] > max.x {
+                max.x = v.position[0];
+            }
+
+            if v.position[1] < min.y {
+                min.y = v.position[1];
+            } else if v.position[1] > max.y {
+                max.y = v.position[1];
+            }
+
+            if v.position[2] < min.z {
+                min.z = v.position[2];
+            } else if v.position[2] > max.z {
+                max.z = v.position[2];
+            }
+        }
+
+        max.add(
+            &Vector {
+                x: -min.x,
+                y: -min.y,
+                z: -min.z,
+            }
+        );
+        self.size = max;
     }
 
     fn get_anchored(&self) -> bool { false }
@@ -143,6 +188,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             position: vector::new_vector(&[0.0, 0.0, 0.0]),
             rotation: vector::new_vector(&[0.0, 180.0, 0.0]),
         },
+        size: Vector {
+                  x: 0.0,
+                  y: 0.0,
+                  z: 0.0
+        },
+        vertices: &obj.vertices,
     };
     
     let mut obj2 = TestObject {
@@ -154,6 +205,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             position: vector::new_vector(&[1.0, 0.0, 0.0]),
             rotation: vector::new_vector(&[0.0, 0.0, 90.0]),
         },
+        size: Vector {
+                  x: 0.0,
+                  y: 0.0,
+                  z: 0.0
+        },
+        vertices: &obj.vertices,
     }; 
 
     resolve_collision(&mut obj1, &mut obj2);
