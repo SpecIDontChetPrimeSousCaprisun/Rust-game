@@ -8,7 +8,10 @@ use glium::winit::event_loop::{ControlFlow, EventLoop};
 use obj::{Obj, load_obj, TexturedVertex};
 mod vector;
 mod drawable;
+mod collidable;
 use drawable::*;
+use collidable::*;
+use vector::*;
 
 #[derive(Copy, Clone)]
 struct Vertex {
@@ -17,6 +20,33 @@ struct Vertex {
     tex_coords: [f32; 2],
 }
 implement_vertex!(Vertex, position, normal, tex_coords);
+
+pub struct TestObject<V, I> where V: glium::vertex::Vertex, I: glium::index::Index  {
+   pub draw_info: DrawInfo<V, I>, 
+}
+
+impl<V: glium::vertex::Vertex, I: glium::index::Index> TestObject<V, I> {}
+
+impl<V: glium::vertex::Vertex, I: glium::index::Index> Drawable<V, I> for TestObject<V, I> {
+    fn draw(&self, mut world_info: WorldInfo, mut target: &mut glium::Frame) {
+        self.on_draw(&self.draw_info, world_info, target);
+    }
+}
+
+impl<V: glium::vertex::Vertex, I: glium::index::Index> Collidable for TestObject<V, I> {
+    fn get_position(&self) -> Vector {
+        return self.draw_info.position;
+    }
+
+    fn get_size(&self) -> Vector {
+        return new_vector(&[10.0, 10.0, 10.0]);
+    }
+
+    fn get_anchored(&self) -> bool { false }
+    fn set_pos(&mut self, pos: Vector) {
+        self.draw_info.position = pos;
+    }
+}
 
 #[macro_use]
 extern crate glium;
@@ -104,7 +134,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let program = glium::Program::from_source(&display, vertex_shader_src, fragment_shader_src, None).unwrap(); 
     let program2 = glium::Program::from_source(&display, vertex_shader_src, fragment_shader_src, None).unwrap(); 
     let mut objects: Vec<Box<dyn Drawable<TexturedVertex, u16>>> = Vec::new();
-    objects.push(Box::new(TestObject{
+    let mut obj1 = TestObject {
         draw_info: DrawInfo {
             vb: vb,
             ib: ib,
@@ -113,19 +143,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             position: vector::new_vector(&[0.0, 0.0, 0.0]),
             rotation: vector::new_vector(&[0.0, 180.0, 0.0]),
         },
-    }));
-
-    /*objects.push(Box::new(TestObject{
+    };
+    
+    let mut obj2 = TestObject {
         draw_info: DrawInfo {
             vb: vb2,
             ib: ib2,
             diffuse_texture: texture2,
             program: program2,
             position: vector::new_vector(&[1.0, 0.0, 0.0]),
-            direction: vector::new_vector(&[0.5, 0.0, -1.0]),
-            up: vector::new_vector(&[0.0, 1.0, 0.0]),
+            rotation: vector::new_vector(&[0.0, 0.0, 90.0]),
         },
-    }));*/
+    }; 
+
+    resolve_collision(&mut obj1, &mut obj2);
+
+    objects.push(Box::new(obj1));
+    objects.push(Box::new(obj2));
 
     let mut pitch = 0.0;
     let mut yaw = 90.0;

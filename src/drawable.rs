@@ -54,15 +54,3 @@ pub trait Drawable<V, I> where V: glium::vertex::Vertex, I: glium::index::Index 
 
     fn draw(&self, mut world_info: WorldInfo, mut target: &mut glium::Frame) {}
 }
-
-pub struct TestObject<V, I> where V: glium::vertex::Vertex, I: glium::index::Index  {
-   pub draw_info: DrawInfo<V, I>, 
-}
-
-impl<V: glium::vertex::Vertex, I: glium::index::Index> TestObject<V, I> {}
-
-impl<V: glium::vertex::Vertex, I: glium::index::Index> Drawable<V, I> for TestObject<V, I> {
-    fn draw(&self, mut world_info: WorldInfo, mut target: &mut glium::Frame) {
-        self.on_draw(&self.draw_info, world_info, target);
-    }
-}
