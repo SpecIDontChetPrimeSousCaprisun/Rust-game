@@ -36,7 +36,7 @@ impl<'a, V: glium::vertex::Vertex, I: glium::index::Index> Drawable<V, I> for Te
     }
 }
 
-impl<'a, V: glium::vertex::Vertex, I: glium::index::Index> Collidable for TestObject<'a, V, I> {
+impl<'a, V: glium::vertex::Vertex, I: glium::index::Index> Collidable<V, I> for TestObject<'a, V, I> {
     fn get_position(&self) -> Vector {
         return self.draw_info.position;
     }
@@ -46,55 +46,7 @@ impl<'a, V: glium::vertex::Vertex, I: glium::index::Index> Collidable for TestOb
     }
 
     fn recalculate_size(&mut self) {
-        let mut min = Vector {
-            x: 0.0,
-            y: 0.0,
-            z: 0.0,
-        };
-
-        let mut max = Vector {
-            x: 0.0, 
-            y: 0.0, 
-            z: 0.0,
-        };
-
-        for v in self.vertices {
-            let new_position = apply_matrix(v.position, self.draw_info.get_matrix());
-
-            if new_position[0] < min.x {
-                min.x = new_position[0];
-            } else if new_position[0] > max.x {
-                max.x = new_position[0];
-            }
-
-            if new_position[1] < min.y {
-                min.y = new_position[1];
-            } else if new_position[1] > max.y {
-                max.y = new_position[1];
-            }
-
-            if new_position[2] < min.z {
-                min.z = new_position[2];
-            } else if new_position[2] > max.z {
-                max.z = new_position[2];
-            }
-        }
-
-        println!("{}, {}, {}", max.x, max.y, max.z);
-
-        if min.x < 0.0 { self.size_offset.x = min.x }
-        if min.y < 0.0 { self.size_offset.y = min.y }
-        if min.z < 0.0 { self.size_offset.z = min.z }
-
-        max.add(
-            &Vector {
-                x: -min.x,
-                y: -min.y,
-                z: -min.z,
-            }
-        );
-        self.size = max;
-        println!("{}, {}, {}: {}, {}, {}", self.size.x, self.size.y, self.size.z, min.x, min.y, min.z);
+        self.size = self.on_recalculate_size(&self.draw_info, self.vertices);
     }
 
     fn get_size_offset(&self) -> Vector { self.size_offset }
