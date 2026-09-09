@@ -6,6 +6,8 @@ use glium::uniform;
 use glium::winit::event::{Event, WindowEvent};
 use glium::winit::event_loop::{ControlFlow, EventLoop};
 use obj::{Obj, load_obj, TexturedVertex};
+use std::rc::Rc;
+use std::cell::RefCell;
 mod vector;
 mod drawable;
 mod collidable;
@@ -141,7 +143,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let program = glium::Program::from_source(&display, vertex_shader_src, fragment_shader_src, None).unwrap(); 
     let program2 = glium::Program::from_source(&display, vertex_shader_src, fragment_shader_src, None).unwrap(); 
-    let mut objects: Vec<Box<dyn Drawable<TexturedVertex, u16>>> = Vec::new();
+    let mut drawables: Vec<Rc<RefCell<dyn Drawable<TexturedVertex, u16>>>> = Vec::new();
+    let mut collidables: Vec<Rc<RefCell<dyn Collidable<TexturedVertex, u16>>>> = Vec::new();
     let mut obj1 = TestObject {
         draw_info: DrawInfo {
             vb: vb,
@@ -186,10 +189,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         vertices: &obj.vertices,
     }; 
 
-    resolve_collision(&mut obj1, &mut obj2);
+    let obj1_box = Rc::new(RefCell::new(obj1));
+    let obj2_box = Rc::new(RefCell::new(obj2));
 
-    objects.push(Box::new(obj1));
-    objects.push(Box::new(obj2));
+    collidables.push(obj1_box.clone());
+    collidables.push(obj2_box.clone());
+    drawables.push(obj1_box.clone());
+    drawables.push(obj2_box.clone());
 
     let mut pitch = 0.0;
     let mut yaw = 90.0;
@@ -249,8 +255,45 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                        
                         target.clear_color_and_depth((0.0, 0.0, 1.0, 1.0), 1.0);
 
-                        for obj in objects.iter_mut() {
-                            obj.draw(
+                        let mut correction_vec: Vec<Vector> = Vec::new();
+                        let mut i = 0;
+
+                        for (i, obj) in collidables.iter().enumerate() {
+                            correction_vec.push(Vector {
+                                    x: 0.0,
+                                    y: 0.0,
+                                    z: 0.0,
+                            });
+                        }
+
+                        for obj1 in collidables.iter() {
+                            let mut ii = 0;
+
+                            for obj2 in collidables.iter() {
+                                let mut obj1A = obj1.as_ref().borrow();
+                                let mut obj2A = obj2.as_ref().borrow();
+
+                                let corrections = resolve_collision(obj1A.get_position(), obj1A.get_size(), obj2A.get_position(), obj2A.get_size());
+
+                                correction_vec[i] = corrections.0;
+                                correction_vec[ii] = corrections.1;
+                                                                
+                                ii += 1;
+                            }
+
+                            i += 1;
+                        }
+
+                        let mut i = 0;
+
+                        for obj in collidables.iter_mut() {
+                            obj.borrow_mut().recalculate_size();
+                            obj.borrow_mut().set_pos(correction_vec[i]);
+                            i += 1;
+                        }
+
+                        for obj in drawables.iter_mut() {
+                            obj.borrow_mut().draw(
                                 WorldInfo {
                                     perspective: &perspective,
                                     u_light: [0.5, 0.5, 0.5f32],
