@@ -262,6 +262,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         target.clear_color_and_depth((0.0, 0.0, 1.0, 1.0), 1.0);
 
                         let mut correction_vec: Vec<Vector> = Vec::new();
+                        let mut made_corrections: Vec<(Uuid, Uuid)> = Vec::new();
                         let mut i = 0;
 
                         for (i, obj) in collidables.iter().enumerate() {
@@ -278,6 +279,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             for obj2 in collidables.iter() {
                                 let mut obj1A = obj1.as_ref().borrow();
                                 let mut obj2A = obj2.as_ref().borrow();
+                                let mut aldready_made = false;
+
+                                for ids in made_corrections.iter() {
+                                    if (obj1A.get_id() == ids.0 && obj2A.get_id() == ids.1) || (obj2A.get_id() == ids.0 && obj1A.get_id() == ids.1) {
+                                        aldready_made = true;
+                                    }
+                                }
+
+                                if aldready_made { continue; }
 
                                 if obj1A.get_id() == obj2A.get_id() {
                                     ii += 1;
@@ -286,8 +296,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                                 let corrections = resolve_collision(obj1A.get_position(), obj1A.get_size(), obj2A.get_position(), obj2A.get_size());
 
-                                correction_vec[i] = corrections.0;
-                                correction_vec[ii] = corrections.1;
+                                correction_vec[i].add(&corrections.0);
+                                correction_vec[ii].add(&corrections.1);
+                                made_corrections.push((obj1A.get_id(), obj2A.get_id()));
                                                                 
                                 ii += 1;
                             }
