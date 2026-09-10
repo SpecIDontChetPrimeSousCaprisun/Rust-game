@@ -8,6 +8,7 @@ use glium::winit::event_loop::{ControlFlow, EventLoop};
 use obj::{Obj, load_obj, TexturedVertex};
 use std::rc::Rc;
 use std::cell::RefCell;
+use uuid::Uuid;
 mod vector;
 mod drawable;
 mod collidable;
@@ -27,7 +28,8 @@ pub struct TestObject<'a,V, I> where V: glium::vertex::Vertex, I: glium::index::
    pub draw_info: DrawInfo<V, I>,
    pub size: Vector,
    pub size_offset: Vector,
-   pub vertices: &'a Vec<TexturedVertex>
+   pub vertices: &'a Vec<TexturedVertex>,
+   pub id: Uuid,
 }
 
 impl<'a, V: glium::vertex::Vertex, I: glium::index::Index> TestObject<'a, V, I> {}
@@ -56,6 +58,8 @@ impl<'a, V: glium::vertex::Vertex, I: glium::index::Index> Collidable<V, I> for 
     fn set_pos(&mut self, pos: Vector) {
         self.draw_info.position.add(&pos);
     }
+
+    fn get_id(&self) -> Uuid { return self.id; }
 }
 
 #[macro_use]
@@ -165,6 +169,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                   z: 0.0
         },
         vertices: &obj.vertices,
+        id: Uuid::new_v4(),
     };
     
     let mut obj2 = TestObject {
@@ -187,6 +192,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                   z: 0.0
         },
         vertices: &obj.vertices,
+        id: Uuid::new_v4(),
     }; 
 
     let obj1_box = Rc::new(RefCell::new(obj1));
@@ -272,6 +278,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             for obj2 in collidables.iter() {
                                 let mut obj1A = obj1.as_ref().borrow();
                                 let mut obj2A = obj2.as_ref().borrow();
+
+                                if obj1A.get_id() == obj2A.get_id() {
+                                    ii += 1;
+                                    continue;
+                                }
 
                                 let corrections = resolve_collision(obj1A.get_position(), obj1A.get_size(), obj2A.get_position(), obj2A.get_size());
 

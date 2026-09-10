@@ -4,6 +4,7 @@ use crate::vector::*;
 use crate::drawable::*;
 use std::num;
 use std::any::Any;
+use uuid::Uuid;
 
 pub trait Collidable<V, I> where V: glium::vertex::Vertex, I: glium::index::Index {
     fn get_position(&self) -> Vector { new_vector(&[0.0, 0.0, 0.0]) } 
@@ -12,6 +13,7 @@ pub trait Collidable<V, I> where V: glium::vertex::Vertex, I: glium::index::Inde
     fn recalculate_size(&mut self) {}
     fn get_anchored(&self) -> bool { false }
     fn set_pos(&mut self, pos: Vector) {}
+    fn get_id(&self) -> Uuid { Uuid::new_v4() }
     fn on_recalculate_size<'a>(&self, draw_info: &DrawInfo<V, I>, vertices: &'a Vec<TexturedVertex>) -> Vector {
         let mut min = Vector {
             x: 0.0,

@@ -8,3 +8,10 @@ glium = "0.35"
 image = "0.24"
 num-quaternion = "1.0.8"
 obj-rs = { version = "0.7.4", features = ["glium"] }
+
+[dependencies.uuid]
+version = "1.26.1"
+# Lets you generate random UUIDs
+features = [
+    "v4",
+]
