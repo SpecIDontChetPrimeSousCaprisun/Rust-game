@@ -12,9 +12,11 @@ use uuid::Uuid;
 mod vector;
 mod drawable;
 mod collidable;
+mod updatable;
 use drawable::*;
 use collidable::*;
 use vector::*;
+use updatable::*;
 
 #[derive(Copy, Clone)]
 struct Vertex {
@@ -30,6 +32,7 @@ pub struct TestObject<'a,V, I> where V: glium::vertex::Vertex, I: glium::index::
    pub size_offset: Vector,
    pub vertices: &'a Vec<TexturedVertex>,
    pub id: Uuid,
+   pub anchored: bool,
 }
 
 impl<'a, V: glium::vertex::Vertex, I: glium::index::Index> TestObject<'a, V, I> {}
@@ -54,12 +57,25 @@ impl<'a, V: glium::vertex::Vertex, I: glium::index::Index> Collidable<V, I> for 
     }
 
     fn get_size_offset(&self) -> Vector { self.size_offset }
-    fn get_anchored(&self) -> bool { false }
+    fn get_anchored(&self) -> bool { self.anchored }
     fn set_pos(&mut self, pos: Vector) {
         self.draw_info.position.add(&pos);
     }
 
     fn get_id(&self) -> Uuid { return self.id; }
+}
+
+impl<'a, V: glium::vertex::Vertex, I: glium::index::Index> Updatable for TestObject<'a, V, I> {
+    fn update(&mut self) {
+        if self.anchored { return; }
+        self.set_pos(Vector {
+            x: 0.0,
+            y: 1.0,
+            z: 0.0,
+        });
+
+        println!("{}", self.draw_info.position.y);
+    }
 }
 
 #[macro_use]
@@ -83,11 +99,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let texture = glium::texture::Texture2d::new(&display, image).unwrap();
     let texture2 = glium::texture::Texture2d::new(&display, image2).unwrap();
 
-    let input = include_bytes!("../Monkey.obj");
+    let input = include_bytes!("../Plane.obj");
     let obj: Obj<TexturedVertex, u16> = load_obj(&input[..])?;
 
     let vb = obj.vertex_buffer(display.get_context())?;
     let ib = obj.index_buffer(display.get_context())?;
+
+    let input = include_bytes!("../Player.obj");
+    let obj: Obj<TexturedVertex, u16> = load_obj(&input[..])?;
 
     let vb2 = obj.vertex_buffer(display.get_context())?;
     let ib2 = obj.index_buffer(display.get_context())?;
@@ -149,14 +168,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let program2 = glium::Program::from_source(&display, vertex_shader_src, fragment_shader_src, None).unwrap(); 
     let mut drawables: Vec<Rc<RefCell<dyn Drawable<TexturedVertex, u16>>>> = Vec::new();
     let mut collidables: Vec<Rc<RefCell<dyn Collidable<TexturedVertex, u16>>>> = Vec::new();
+    let mut updatables: Vec<Rc<RefCell<dyn Updatable>>> = Vec::new();
     let mut obj1 = TestObject {
         draw_info: DrawInfo {
             vb: vb,
             ib: ib,
             diffuse_texture: texture,
             program: program,
-            position: vector::new_vector(&[0.0, 0.0, 0.0]),
-            rotation: vector::new_vector(&[0.0, 180.0, 0.0]),
+            position: vector::new_vector(&[0.0, -1.0, 0.0]),
+            rotation: vector::new_vector(&[0.0, 0.0, 0.0]),
         },
         size: Vector {
                   x: 0.0,
@@ -170,6 +190,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         },
         vertices: &obj.vertices,
         id: Uuid::new_v4(),
+        anchored: true,
     };
     
     let mut obj2 = TestObject {
@@ -178,8 +199,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             ib: ib2,
             diffuse_texture: texture2,
             program: program2,
-            position: vector::new_vector(&[1.0, 0.0, 0.0]),
-            rotation: vector::new_vector(&[0.0, 0.0, 90.0]),
+            position: vector::new_vector(&[0.0, 50.0, 0.0]),
+            rotation: vector::new_vector(&[0.0, 0.0, 0.0]),
         },
         size: Vector {
                   x: 0.0,
@@ -193,6 +214,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         },
         vertices: &obj.vertices,
         id: Uuid::new_v4(),
+        anchored: false,
     }; 
 
     let obj1_box = Rc::new(RefCell::new(obj1));
@@ -202,6 +224,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     collidables.push(obj2_box.clone());
     drawables.push(obj1_box.clone());
     drawables.push(obj2_box.clone());
+    updatables.push(obj1_box.clone());
+    updatables.push(obj2_box.clone());
 
     let mut pitch = 0.0;
     let mut yaw = 90.0;
@@ -261,6 +285,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                        
                         target.clear_color_and_depth((0.0, 0.0, 1.0, 1.0), 1.0);
 
+                        for obj in updatables.iter_mut() {
+                            obj.borrow_mut().update();
+                        }
+
                         let mut correction_vec: Vec<Vector> = Vec::new();
                         let mut made_corrections: Vec<(Uuid, Uuid)> = Vec::new();
                         let mut i = 0;
@@ -271,6 +299,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     y: 0.0,
                                     z: 0.0,
                             });
+                        }
+
+                        for obj in collidables.iter_mut() {
+                            obj.borrow_mut().recalculate_size();
                         }
 
                         for obj1 in collidables.iter() {
@@ -294,7 +326,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     continue;
                                 }
 
-                                let corrections = resolve_collision(obj1A.get_position(), obj1A.get_size(), obj2A.get_position(), obj2A.get_size());
+                                let mut obj1pos = obj1A.get_position();
+                                let mut obj2pos = obj2A.get_position();
+
+                                obj1pos.add(&obj1A.get_size_offset());
+                                obj2pos.add(&obj2A.get_size_offset());
+
+                                let corrections = resolve_collision(obj1pos, obj1A.get_size(), obj2pos, obj2A.get_size());
 
                                 correction_vec[i].add(&corrections.0);
                                 correction_vec[ii].add(&corrections.1);
@@ -311,6 +349,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         for obj in collidables.iter_mut() {
                             obj.borrow_mut().recalculate_size();
                             obj.borrow_mut().set_pos(correction_vec[i]);
+                            obj.borrow_mut().recalculate_size();
                             i += 1;
                         }
 

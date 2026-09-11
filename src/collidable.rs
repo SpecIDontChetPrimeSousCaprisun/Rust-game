@@ -83,10 +83,8 @@ pub fn resolve_collision(a_pos: Vector, a_size: Vector, b_pos: Vector, b_size: V
        a_pos.y + a_size.y >= b_pos.y &&
        a_pos.z <= b_pos.z + b_size.z &&
        a_pos.z + a_size.z >= b_pos.z {
-           println!("COLOSDJFPSDKJFOISDJOISION");
         if (a_pos.x - b_pos.x).abs() < (a_pos.y - b_pos.y).abs() &&
             (a_pos.x - b_pos.x).abs() < (a_pos.z - b_pos.z).abs() {
-                println!("a");
             if a_pos.x > b_pos.x {
                 a_increment = new_vector(&[b_size.x - (a_pos.x - b_pos.x), 0.0, 0.0]);
             } else {
@@ -94,14 +92,12 @@ pub fn resolve_collision(a_pos: Vector, a_size: Vector, b_pos: Vector, b_size: V
             }
         } else if (a_pos.y - b_pos.y).abs() < (a_pos.x - b_pos.x).abs() &&
                    (a_pos.y - b_pos.y).abs() < (a_pos.z - b_pos.z).abs() {
-                       println!("b");
             if a_pos.y > b_pos.y {
                 a_increment = new_vector(&[0.0, b_size.y - (a_pos.y - b_pos.y), 0.0]);
             } else {
                 b_increment = new_vector(&[0.0, a_size.y - (b_pos.y - a_pos.y), 0.0]);
             }
         } else {
-            println!("c");
             if a_pos.z > b_pos.z {
                 a_increment = new_vector(&[0.0, 0.0, b_size.z - (a_pos.z - b_pos.z)]);
             } else {
@@ -109,11 +105,6 @@ pub fn resolve_collision(a_pos: Vector, a_size: Vector, b_pos: Vector, b_size: V
             }
         }
     }
-    println!("1: {}, {}, {}", a_increment.x, a_increment.y, a_increment.z);
-    println!("2: {}, {}, {}", b_increment.x, b_increment.y, b_increment.z);
-    println!("pos: {}, {}, {}", b_pos.x, b_pos.y, b_pos.z);
-    println!("siz: {}, {}, {}", b_size.x, b_size.y, b_size.z);
-
 
     return (a_increment, b_increment);
 }
